@@ -1,5 +1,3 @@
-
-
 import 'package:uuid/uuid.dart';
 
 enum ExpenseCategory {
@@ -9,12 +7,14 @@ enum ExpenseCategory {
   shopping,
   health,
   utilities,
+  vegetables,
   other,
 }
 
 class Expense {
   final String id;
   final String title;
+  final String paymentType;
   final double amount;
   final ExpenseCategory category;
   final DateTime date;
@@ -26,6 +26,7 @@ class Expense {
     required this.amount,
     required this.category,
     required this.date,
+    required this.paymentType,
     this.description,
   }) : id = id ?? const Uuid().v4();
 
@@ -45,8 +46,9 @@ class Expense {
       id: map['id'],
       title: map['title'],
       amount: map['amount'],
+      paymentType: map['type'],
       category: ExpenseCategory.values.firstWhere(
-            (e) => e.name == map['category'],
+        (e) => e.name == map['category'],
         orElse: () => ExpenseCategory.other,
       ),
       date: DateTime.fromMillisecondsSinceEpoch(map['date']),
@@ -61,6 +63,7 @@ class Expense {
     ExpenseCategory? category,
     DateTime? date,
     String? description,
+    String? paymentType,
   }) {
     return Expense(
       id: id ?? this.id,
@@ -69,6 +72,7 @@ class Expense {
       category: category ?? this.category,
       date: date ?? this.date,
       description: description ?? this.description,
+      paymentType: paymentType?? this.paymentType,
     );
   }
 }
@@ -88,6 +92,8 @@ extension ExpenseCategoryExtension on ExpenseCategory {
         return 'Health';
       case ExpenseCategory.utilities:
         return 'Utilities';
+      case ExpenseCategory.vegetables:
+        return 'Vegetables';
       case ExpenseCategory.other:
         return 'Other';
     }
@@ -107,6 +113,8 @@ extension ExpenseCategoryExtension on ExpenseCategory {
         return '🏥';
       case ExpenseCategory.utilities:
         return '💡';
+      case ExpenseCategory.vegetables:
+        return '🥦';
       case ExpenseCategory.other:
         return '📝';
     }

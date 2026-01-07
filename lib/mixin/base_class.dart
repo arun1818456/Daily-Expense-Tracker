@@ -15,6 +15,8 @@ mixin BaseClass {
         return Colors.red;
       case ExpenseCategory.utilities:
         return Colors.teal;
+        case ExpenseCategory.vegetables:
+        return Colors.green;
       case ExpenseCategory.other:
         return Colors.grey;
     }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/expense.dart';
 import '../providers/expense_provider.dart';
 
@@ -18,6 +19,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
   final _descriptionController = TextEditingController();
+  PaymentType? _selectedPaymentType;
 
   ExpenseCategory _selectedCategory = ExpenseCategory.other;
   DateTime _selectedDate = DateTime.now();
@@ -26,12 +28,29 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   @override
   void initState() {
     super.initState();
+
     if (widget.expenseToEdit != null) {
       _titleController.text = widget.expenseToEdit!.title;
       _amountController.text = widget.expenseToEdit!.amount.toString();
       _descriptionController.text = widget.expenseToEdit!.description ?? '';
       _selectedCategory = widget.expenseToEdit!.category;
       _selectedDate = widget.expenseToEdit!.date;
+      _selectedPaymentType = PaymentType.values.firstWhere(
+        (type) => type.name == widget.expenseToEdit!.paymentType,
+      );
+    } else {
+      addData();
+    }
+  }
+
+  addData() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? savedPaymentType = prefs.getString('paymentType');
+    if (savedPaymentType != null) {
+      _selectedPaymentType = PaymentType.values.firstWhere(
+        (type) => type.name == savedPaymentType,
+      );
+      setState(() {});
     }
   }
 
@@ -57,6 +76,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         amount: double.parse(_amountController.text),
         category: _selectedCategory,
         date: _selectedDate,
+        paymentType: _selectedPaymentType!.name,
         description: _descriptionController.text.trim().isEmpty
             ? null
             : _descriptionController.text.trim(),
@@ -132,7 +152,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: Text(widget.expenseToEdit != null ? 'Edit Expense' : 'Add Expense'),
+        title: Text(
+          widget.expenseToEdit != null ? 'Edit Expense' : 'Add Expense',
+        ),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         actions: [
           if (widget.expenseToEdit != null)
@@ -190,11 +212,46 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               ),
               const SizedBox(height: 16),
 
-              // Category Selection
-              Text(
-                'Category',
-                style: Theme.of(context).textTheme.titleMedium,
+              // Payment Type Dropdown
+              DropdownButtonFormField<PaymentType>(
+                initialValue: _selectedPaymentType,
+                decoration: const InputDecoration(
+                  labelText: 'Payment Type',
+                  border: OutlineInputBorder(),
+                  contentPadding: EdgeInsets.symmetric(horizontal: 12),
+                ),
+                items: PaymentType.values.map((type) {
+                  return DropdownMenuItem<PaymentType>(
+                    value: type,
+                    child: Row(
+                      children: [
+                        Icon(type.icon, size: 20),
+                        const SizedBox(width: 8),
+                        Text(type.label),
+                      ],
+                    ),
+                  );
+                }).toList(),
+                onChanged: (value) async {
+                  setState(() {
+                    _selectedPaymentType = value!;
+                  });
+                  final SharedPreferences prefs =
+                      await SharedPreferences.getInstance();
+                  prefs.setString('paymentType', value!.name);
+                },
+                validator: (value) {
+                  if (value == null) {
+                    return 'Please select payment type';
+                  }
+                  return null;
+                },
               ),
+
+              const SizedBox(height: 16),
+
+              // Category Selection
+              Text('Category', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
@@ -258,9 +315,11 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   child: _isLoading
                       ? const CircularProgressIndicator()
                       : Text(
-                    widget.expenseToEdit != null ? 'Update Expense' : 'Add Expense',
-                    style: const TextStyle(fontSize: 16),
-                  ),
+                          widget.expenseToEdit != null
+                              ? 'Update Expense'
+                              : 'Add Expense',
+                          style: const TextStyle(fontSize: 16),
+                        ),
                 ),
               ),
             ],
@@ -284,7 +343,9 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
-              await ref.read(expensesProvider.notifier).deleteExpense(widget.expenseToEdit!.id);
+              await ref
+                  .read(expensesProvider.notifier)
+                  .deleteExpense(widget.expenseToEdit!.id);
               if (mounted) {
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -300,5 +361,27 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         ],
       ),
     );
+  }
+}
+
+enum PaymentType { cash, online }
+
+extension PaymentTypeX on PaymentType {
+  String get label {
+    switch (this) {
+      case PaymentType.cash:
+        return 'Cash';
+      case PaymentType.online:
+        return 'Online';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case PaymentType.cash:
+        return Icons.money;
+      case PaymentType.online:
+        return Icons.account_balance_wallet;
+    }
   }
 }
